@@ -4,57 +4,11 @@ import cors from "cors";
 import mongoose from "mongoose";
 import UserRoutes from "./routes/User.js";
 import FoodRoutes from "./routes/Food.js";
+
 dotenv.config();
 
 const app = express();
-app.use(cors({
-    origin: 'https://food-delivery-new-client.vercel.app', // Your frontend URL
-    methods: ['GET', 'POST'],
-}));
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ extended: true })); // for form data
 
-app.use("/api/user/", UserRoutes);
-app.use("/api/food/", FoodRoutes);
-
-// error handler
-app.use((err, req, res, next) => {
-  const status = err.status || 500;
-  const message = err.message || "Something went wrong";
-  return res.status(status).json({
-    success: false,
-    status,
-    message,
-  });
-});
-
-app.get("/", async (req, res) => {
-  res.status(200).json({
-    message: "Hello developers from GFG",
-  });
-});
-
-const connectDB = () => {
-  mongoose.set("strictQuery", true);
-  mongoose
-    .connect(process.env.MONGODB_URL)
-    .then(() => console.log("Connected to Mongo DB"))
-    .catch((err) => {
-      console.error("failed to connect with mongo");
-      console.error(err);
-    });
-};
-
-const startServer = async () => {
-  try {
-    connectDB();
-    app.listen(8462, () => console.log("Server started on port 8462"));
-  } catch (error) {
-    console.log(error);
-  }
-};
-
-// CORS configuration
 const allowedOrigins = [
   'http://localhost:8462',
   'https://food-delivery-new-client.vercel.app'
@@ -62,8 +16,7 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    if (!origin) return callback(null, true); // Allow curl/Postman requests
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -72,7 +25,46 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true }));
+
+app.use("/api/user/", UserRoutes);
+app.use("/api/food/", FoodRoutes);
+
+app.get("/", async (req, res) => {
+  res.status(200).json({ message: "Hello developers from GFG" });
+});
+
+app.use((err, req, res, next) => {
+  const status = err.status || 500;
+  const message = err.message || "Something went wrong";
+  console.error(`Error: ${message}`);
+  return res.status(status).json({ success: false, status, message });
+});
+
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGODB_URL, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    console.log("Connected to MongoDB");
+  } catch (error) {
+    console.error("Failed to connect with MongoDB", error);
+    process.exit(1);
+  }
+};
+
+const startServer = async () => {
+  try {
+    await connectDB();
+    app.listen(8462, () => console.log("Server started on port 8462"));
+  } catch (error) {
+    console.error("Server failed to start", error);
+  }
+};
 
 startServer();
